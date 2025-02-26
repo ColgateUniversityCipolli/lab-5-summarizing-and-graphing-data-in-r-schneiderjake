@@ -1,3 +1,9 @@
+################################################################################
+# Lab 5 R Code 
+# Schneider 
+# MATH 240 - SPRING 2025
+################################################################################
+
 library(tidyverse)
 library(xtable)
 
@@ -42,44 +48,57 @@ for(feature in features.numeric){
   compared.features <- bind_rows(compared.features, essentia.data.grouped)
 }
 
+
 compared.features.filtered <- compared.features|>
-  filter(feature == "overall_loudness" | feature == "tempo" | feature == "duration" | feature == "beats_count" |
-           feature == "beats_loudness" | feature == "tuning_frequency" | feature == "acoustic" | feature == "electronic" |
-           feature == "danceability" | feature == "Tone" | feature == "WC" | feature == "happy")
+  filter(feature %in% c("average_loudness", "dynamic_complexity", "spectral_centroid", "spectral_skewness", "arousal", "spectral_kurtosis", "spectral_rolloff", "barkbands_kurtosis",
+                        "Perception" , "chords_strength" , "dissonance", "positivewords"))
+
 
 compared.features.filtered.table <- xtable(compared.features.filtered,
                                            caption = "Artist Features Being Compared to Allentown", 
-                                           label = "compared.features.xtable")
+                                           label = "compared.features")
 
 
 essentia.data.pivoted <- essentia.data |>
   pivot_longer(cols = all_of(features.numeric), names_to = "feature", values_to = "value") |>
-  filter(feature == "overall_loudness" | feature == "tempo" | feature == "duration" | feature == "beats_count" |
-           feature == "beats_loudness" | feature == "tuning_frequency" | feature == "acoustic" | feature == "electronic" |
-           feature == "danceability" | feature == "Tone" | feature == "WC" | feature == "happy")
+  filter(feature %in% c("average_loudness", "dynamic_complexity", "spectral_centroid", "spectral_skewness", "arousal", "spectral_kurtosis", "spectral_rolloff", "barkbands_kurtosis",
+                        "Perception" , "chords_strength" , "dissonance", "positivewords"))
 
 allentown.data.pivoted <- allentown.data |>
   pivot_longer(cols = all_of(features.numeric), names_to = "feature", values_to = "value") |>
-  filter(feature == "overall_loudness" | feature == "tempo" | feature == "duration" | feature == "beats_count" |
-           feature == "beats_loudness" | feature == "tuning_frequency" | feature == "acoustic" | feature == "electronic" |
-           feature == "danceability" | feature == "Tone" | feature == "WC" | feature == "happy")
+  filter(feature %in% c("average_loudness", "dynamic_complexity", "spectral_centroid", "spectral_skewness", "arousal", "spectral_kurtosis", "spectral_rolloff", "barkbands_kurtosis",
+                        "Perception" , "chords_strength" , "dissonance", "positivewords"))
 
 
-
-ggplot(data = essentia.data.pivoted, aes(y = value, fill = artist)) +
-  geom_boxplot(width = 0.5, outlier.colour = "red", outlier.shape = 16, outlier.size = 1.5) +  
+features.plot <- ggplot(data = essentia.data.pivoted, aes(y = value, fill = artist)) +
+  geom_boxplot(width = 0.5, outlier.shape = NA) +  
   facet_wrap(~ feature, scales = "free_y", ncol = 4 ) +  # Different y-axis scale for each feature
-  geom_boxplot(data = allentown.data.pivoted, aes(y=value), color = "black", size = .4) +
+  geom_boxplot(data = allentown.data.pivoted, aes(y=value, color = "Allentown"), size = .4) +
   labs(
     title = "Feature Distributions Across Artists",
-    y = "Feature Value"
+    y = "Feature Value",
+    color = "Song",
+    fill = "Artist"
   )+
+  scale_fill_manual(values = c("All Get Out" = "lightcoral", 
+                               "Manchester Orchestra" = "green", 
+                               "The Front Bottoms" = "purple")) +  # Define colors for artists
+  scale_color_manual(values = c("Allentown" = "black")) +  # Assign black to Allentown
   theme_minimal() +
   theme(
+    plot.title = element_text(hjust = .5, size = 14, face = "bold"),
     axis.text.x = element_blank(),  # Remove x-axis text labels
     axis.ticks.x = element_blank(),  # Remove x-axis tick marks
     legend.position = "bottom"
   )
 
+ggsave("feature.plot.pdf", plot=features.plot, width=10, height = 8)
 
+compared.features <- compared.features |>
+  filter(description %in% c("Outlying", "Out Of Range"))
+
+filtered_features <- compared.features %>%
+  group_by(feature) %>%              # Group by feature
+  filter(n() == 2) %>%               # Keep only those appearing exactly twice
+  ungroup()
 
