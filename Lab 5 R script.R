@@ -2,13 +2,15 @@
 # Lab 5 R Code 
 # Schneider 
 # MATH 240 - SPRING 2025
-################################################################################
+###############################################################################
 
 library(tidyverse)
 library(xtable)
 
 
+##############################################################################
 #open our csv files 
+##############################################################################
 essentia.data <- read_csv("data/essentia.data.csv") 
 
 allentown.data <- read_csv("data/essentia.data.allentown.csv")
@@ -19,6 +21,10 @@ features.numeric <- names(essentia.data)[sapply(essentia.data, is.numeric)]
 #creating an empty tibble to store our results in 
 compared.features <- tibble()
 
+
+##############################################################################
+#for loop extracting all of our features and creating our numerical summary
+##############################################################################
 for(feature in features.numeric){
   
   essentia.data.grouped <- essentia.data %>%
@@ -34,6 +40,7 @@ for(feature in features.numeric){
   
   allentown.feature <- allentown.data[[feature]] #we compare the 5 number summary of that feature to allentown 
   
+  #creating new columns for our tibble where we store our features as one of the 3 descriptions listed below
   essentia.data.grouped <- essentia.data.grouped %>% 
     mutate(
       out.of.range = allentown.feature < min | allentown.feature > max , 
@@ -48,31 +55,41 @@ for(feature in features.numeric){
   compared.features <- bind_rows(compared.features, essentia.data.grouped)
 }
 
-
-compared.features.filtered <- compared.features|>
-  filter(feature %in% c("average_loudness", "dynamic_complexity", "spectral_centroid", "spectral_skewness", "arousal", "spectral_kurtosis", "spectral_rolloff", "barkbands_kurtosis",
-                        "Perception" , "chords_strength" , "dissonance", "positivewords"))
-
-
-compared.features.filtered.table <- xtable(compared.features.filtered,
-                                           caption = "Artist Features Being Compared to Allentown", 
-                                           label = "compared.features")
-
-
+#we are pivoting all of our data except for allentown so that we can plot it
 essentia.data.pivoted <- essentia.data |>
   pivot_longer(cols = all_of(features.numeric), names_to = "feature", values_to = "value") |>
   filter(feature %in% c("average_loudness", "dynamic_complexity", "spectral_centroid", "spectral_skewness", "arousal", "spectral_kurtosis", "spectral_rolloff", "barkbands_kurtosis",
                         "Perception" , "chords_strength" , "dissonance", "positivewords"))
 
+#we are pivoting our allentown data so that we can plot it
 allentown.data.pivoted <- allentown.data |>
   pivot_longer(cols = all_of(features.numeric), names_to = "feature", values_to = "value") |>
   filter(feature %in% c("average_loudness", "dynamic_complexity", "spectral_centroid", "spectral_skewness", "arousal", "spectral_kurtosis", "spectral_rolloff", "barkbands_kurtosis",
                         "Perception" , "chords_strength" , "dissonance", "positivewords"))
 
 
+#we created this vector so that we can rename titles for each one of our individual graphs in our box plots
+feature_labels <- c(
+  "arousal" = "Emotional Arousal",
+  "average_loudness" = "Loudness (Avg)",
+  "barkbands_kurtosis" = "Barkbands Kurtosis",
+  "chords_strength" = "Chord Strength",
+  "dissonance" = "Dissonance Level",
+  "dynamic_complexity" = "Dynamic Complexity",
+  "Perception" = "Perception Score",
+  "positivewords" = "Positive Words Count",
+  "spectral_centroid" = "Spectral Centroid",
+  "spectral_kurtosis" = "Spectral Kurtosis",
+  "spectral_rolloff" = "Spectral Rolloff",
+  "spectral_skewness" = "Spectral Skewness"
+)
+
+
+#here we create our box plots
 features.plot <- ggplot(data = essentia.data.pivoted, aes(y = value, fill = artist)) +
   geom_boxplot(width = 0.5, outlier.shape = NA) +  
-  facet_wrap(~ feature, scales = "free_y", ncol = 4 ) +  # Different y-axis scale for each feature
+  facet_wrap(~ feature, scales = "free_y", ncol = 4,
+             labeller = as_labeller(feature_labels)) +  # different y-axis scale for each feature
   geom_boxplot(data = allentown.data.pivoted, aes(y=value, color = "Allentown"), size = .4) +
   labs(
     title = "Feature Distributions Across Artists",
@@ -82,23 +99,41 @@ features.plot <- ggplot(data = essentia.data.pivoted, aes(y = value, fill = arti
   )+
   scale_fill_manual(values = c("All Get Out" = "lightcoral", 
                                "Manchester Orchestra" = "green", 
-                               "The Front Bottoms" = "purple")) +  # Define colors for artists
-  scale_color_manual(values = c("Allentown" = "black")) +  # Assign black to Allentown
+                               "The Front Bottoms" = "purple")) +  # define colors for artists
+  scale_color_manual(values = c("Allentown" = "black")) +  # assign black to Allentown
   theme_minimal() +
   theme(
     plot.title = element_text(hjust = .5, size = 14, face = "bold"),
-    axis.text.x = element_blank(),  # Remove x-axis text labels
-    axis.ticks.x = element_blank(),  # Remove x-axis tick marks
+    axis.text.x = element_blank(),  # remove x-axis text labels
+    axis.ticks.x = element_blank(),  # remove x-axis tick marks
     legend.position = "bottom"
   )
 
-ggsave("feature.plot.pdf", plot=features.plot, width=10, height = 8)
+ggsave("feature.plot.pdf", plot=features.plot, width=10, height = 8) #save our box plots so that we can put it in our RNW
 
-compared.features <- compared.features |>
-  filter(description %in% c("Outlying", "Out Of Range"))
+compared.features.table<- compared.features|>
+  filter(feature %in% c("average_loudness", "dynamic_complexity", "spectral_centroid", "spectral_skewness", "arousal", "spectral_kurtosis", "spectral_rolloff", "barkbands_kurtosis",
+                        "Perception" , "chords_strength" , "dissonance", "positivewords"))|>
+  select(-unusual,-out.of.range) #here we filter through all of our data so that we can create a table that represents our box plot data
 
-filtered_features <- compared.features %>%
-  group_by(feature) %>%              # Group by feature
-  filter(n() == 2) %>%               # Keep only those appearing exactly twice
-  ungroup()
+
+table.for.file <- xtable(compared.features.table,
+                         caption = "Artist Features Being Compared to Allentown", 
+                         label = "compared.features") #here we print out our table that we will insert into our RNW file
+
+
+
+##############################################################################
+#these two lines of code helped me to filter through the features that I wanted to plot
+##############################################################################
+compared.features.filter <- compared.features |>
+  filter(description %in% c("Outlying", "Out Of Range")) #here I filtered through my data to find features where the description said outlying or not in range
+
+
+filtered_features.finding <- compared.features.filter %>%
+  group_by(feature) %>%   # group by feature
+  filter(n() == 2) %>% # keep only those appearing exactly twice
+  ungroup() %>%
+  select(-out.of.range,-unusual) #this helped me to finalize my list as I could see the features that appear twice indicating that there must be one band in range
+
 
